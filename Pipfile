@@ -17,6 +17,7 @@ python-dotenv = "*"
 pysftp = "*"
 requests = "*"
 pillow = "*"
+paramiko = ">=2,<3" 
 
 [dev-packages]
 autopep8 = "*"
