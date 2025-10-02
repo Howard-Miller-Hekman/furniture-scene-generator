@@ -1,0 +1,29 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://$DEVPI_USERNAME:${DEVPI_PASSWORD}@pypi.mktg.howardmiller.co/hmcc/stable"
+verify_ssl = true
+name = "hmcc-devpi-stable"
+
+[packages]
+google-cloud-vision = "*"
+google-cloud-aiplatform = "*"
+pandas = "*"
+openpyxl = "*"
+python-dotenv = "*"
+pysftp = "*"
+requests = "*"
+pillow = "*"
+
+[dev-packages]
+autopep8 = "*"
+pylint = "*"
+sqlacodegen = "*"
+sqlacodegen-v2 = "*"
+psycopg2 = "*"
+
+[requires]
+python_version = "3.10"
