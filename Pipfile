@@ -35,6 +35,7 @@ pylint = "*"
 sqlacodegen = "*"
 sqlacodegen-v2 = "*"
 psycopg2 = "*"
+ipykernel = "*"
 
 [requires]
 python_version = "3.10"

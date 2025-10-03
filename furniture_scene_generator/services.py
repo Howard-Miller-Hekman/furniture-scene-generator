@@ -9,7 +9,7 @@ from vertexai.preview.vision_models import ImageGenerationModel
 import vertexai
 
 from furniture_scene_generator import config
-
+from langchain.chat_models import init_chat_model
 
 def initialize_google_clients():
     """Initialize Google Cloud clients"""
@@ -370,3 +370,12 @@ def upload_to_sftp(local_path, remote_filename):
     except Exception as e:
         print(f"  ✗ SFTP upload error: {str(e)}")
         raise
+
+
+def create_chat_model():
+    model = init_chat_model(
+        model="gemini-2.5-flash",  # Updated to 2.5
+        model_provider="google_vertexai",
+        project=config.PROJECT_ID,
+        location=config.LOCATION)
+    return model
