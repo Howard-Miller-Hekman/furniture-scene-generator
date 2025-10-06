@@ -209,3 +209,7 @@ __marimo__/
 *.json
 *.xlsx
 
+work/
+
+*.ipynb
+output/
