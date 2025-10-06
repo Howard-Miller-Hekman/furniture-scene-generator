@@ -1,4 +1,15 @@
+'''
+Furniture scene generator configuration
+'''
+
 import os
+from furniture_scene_generator import version
+
+import os
+
+PROJECT_ROOT = os.path.dirname(__file__)
+
+PROJECT_VERSION = version.__version__
 
 PROJECT_ID = os.getenv('GOOGLE_PROJECT_ID')
 LOCATION = os.getenv('GOOGLE_LOCATION', 'us-central1')
