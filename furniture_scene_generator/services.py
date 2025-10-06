@@ -1,6 +1,9 @@
 import os
 import requests
-
+import mimetypes
+import base64
+import logging
+from decimal import Decimal
 
 import pandas as pd
 import pysftp
@@ -8,8 +11,10 @@ from google.cloud import vision
 from vertexai.preview.vision_models import ImageGenerationModel
 import vertexai
 
-from furniture_scene_generator import config
-from langchain.chat_models import init_chat_model
+from furniture_scene_generator import config, schema
+
+
+logger = logging.getLogger(__name__)
 
 def initialize_google_clients():
     """Initialize Google Cloud clients"""
@@ -372,10 +377,149 @@ def upload_to_sftp(local_path, remote_filename):
         raise
 
 
-def create_chat_model():
-    model = init_chat_model(
-        model="gemini-2.5-flash",  # Updated to 2.5
-        model_provider="google_vertexai",
-        project=config.PROJECT_ID,
-        location=config.LOCATION)
-    return model
+
+def create_place_image_in_room_prompt(room_type="living room", other_possible_furniture="sofa and chairs") -> str:
+    return (
+        "Analyze the attached photo of a piece of furniture to determine "
+        "its style. Then, generate a high-resolution, photorealistic image "
+        f"of a {room_type} scene that is aesthetically appropriate for that "
+        "furniture style, placing the furniture item within it. The "
+        "furniture should be clearly visible, so position other furnishings "
+        f"(like the {other_possible_furniture}) to the sides or background to ensure "
+        "the main item is the focal point."
+    )
+
+
+def url_to_data_url(url: str) -> str:
+    # If it's already a data URL, return as-is
+    if url.strip().lower().startswith("data:"):
+        return url
+
+    # Guess the MIME type from the URL
+    mime_type, _ = mimetypes.guess_type(url)
+
+    if mime_type and mime_type.startswith("image/"):
+        try:
+            # Download the image
+            response = requests.get(url)
+            response.raise_for_status()
+
+            # Encode the image content as base64
+            encoded = base64.b64encode(response.content).decode("utf-8")
+
+            # Build data URL
+            data_url = f"data:{mime_type};base64,{encoded}"
+            return data_url
+        except Exception as e:
+            # If anything goes wrong, fallback to original URL
+            print(f"Error downloading/encoding image: {e}")
+            return url
+    else:
+        # Not an image → return original URL
+        return url
+
+
+def image_url_to_message(url: str):
+    normal_image_url = url_to_data_url(url)
+    return {
+        "type": "image_url",
+        "image_url": { "url": normal_image_url}
+    }
+
+
+def read_excel_file():
+    # Read Excel file
+    logger.info(f"\n📂 Reading Excel file: {config.EXCEL_INPUT_PATH}")
+    df = pd.read_excel(config.EXCEL_INPUT_PATH)
+    logger.info(f"✓ Found {len(df)} products")    
+    return df
+
+
+
+def row_to_product_data(row) -> schema.ProductData:
+    row_dict = row.to_dict()
+    
+    # Create ProductData object from row
+    # Map DataFrame columns to schema fields
+    # Pydantic will handle type validation and conversion
+    product_data = schema.ProductData(
+        model=str(row_dict.get('Model', '')),
+        qoh=int(row_dict['QOH']) if pd.notna(row_dict.get('QOH')) else None,
+        wl=str(row_dict['WL']) if pd.notna(row_dict.get('WL')) else None,
+        retail=Decimal(str(row_dict['Retail'])) if pd.notna(row_dict.get('Retail')) else None,
+        MAP=Decimal(str(row_dict['MAP'])) if pd.notna(row_dict.get('MAP')) else None,
+        cost=Decimal(str(row_dict['Cost'])) if pd.notna(row_dict.get('Cost')) else None,
+        landed_cost=Decimal(str(row_dict['Landed Cost'])) if pd.notna(row_dict.get('Landed Cost')) else None,
+        silo_image=str(row_dict['Silo Image']) if pd.notna(row_dict.get('Silo Image')) else None,
+        website_link_for_context=str(row_dict['WebSite Link for Context']) if pd.notna(row_dict.get('WebSite Link for Context')) else None,
+        lifestyle_image=str(row_dict['Lifestyle Image']) if pd.notna(row_dict.get('Lifestyle Image')) else None,
+    )
+    return product_data    
+
+
+def read_product_data_from_df(df: pd.DataFrame) -> list[schema.ProductData]:
+    """Process DataFrame rows and convert to ProductData schema objects."""
+    products = []
+    
+    logger.info(f"\n🔄 Processing {len(df)} products...")
+    
+    for idx, row in df.iterrows():
+        try:
+            # Convert row to dictionary and handle NaN values
+            product_data = row_to_product_data(row)            
+            products.append(product_data)
+            logger.debug(f"  ✓ Processed product: {product_data.model}")
+            
+        except Exception as e:
+            logger.error(f"  ✗ Error processing row {idx}: {str(e)}")
+            continue
+    
+    logger.info(f"✓ Successfully processed {len(products)} products")
+    return products
+
+
+def generate_room_scene_with_agent(agent, original_prompt, product_data, local_output_path):
+    initial_state = {
+        "original_prompt": original_prompt,
+        "improved_prompt": "",
+        "product_data": product_data,
+        "response": None,
+        "error": None
+    }
+
+    try:
+        final_state = agent.invoke(initial_state)
+        test_response = final_state['response']
+        logger.info("✓ Model is working! Generated test response successfully")
+        logger.info(f"  Response type: {type(test_response)}")
+        logger.info(f"  Content preview: {str(test_response.content)[:200]}...")
+    except Exception as e:
+        logging.error(f"Model test failed: {str(e)}", exc_info=True)
+        print(f"⚠️ Model test failed: {str(e)}")
+        return False
+
+    if test_response:
+        for resp in test_response.content:
+            if type(resp) == str:
+                print(resp)
+            elif type(resp) == dict:
+                if resp['type'] == 'image_url':
+                    image_url = resp['image_url']['url']
+                    
+                    if image_url.startswith('data:'):
+                        # Handle data URL
+                        header, encoded = image_url.split(',', 1)
+                        image_bytes = base64.b64decode(encoded)
+                    else:
+                        # Handle remote URL
+                        response = requests.get(image_url)
+                        response.raise_for_status()
+                        image_bytes = response.content
+
+                    with open(local_output_path, 'wb') as f:
+                        f.write(image_bytes)
+                    return True
+            else:
+                logger.warning(f"Unknown response type: {type(resp)} : {resp}")
+
+    return False

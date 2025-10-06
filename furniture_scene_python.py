@@ -5,7 +5,7 @@ Generates room scenes for furniture products using Google's Imagen API
 Customized for Overstock White Label Project
 """
 
-from furniture_scene_generator import services, config
+from furniture_scene_generator import llm, services, config
 import pandas as pd
 
 from pathlib import Path
@@ -27,11 +27,11 @@ def main():
         print("\n🔧 Initializing Google Cloud clients...")
         vision_client, imagen_model = services.initialize_google_clients()
         print("✓ Clients initialized")
+
+        agent = llm.create_agent()
         
-        # Read Excel file
-        print(f"\n📂 Reading Excel file: {config.EXCEL_INPUT_PATH}")
-        df = pd.read_excel(config.EXCEL_INPUT_PATH)
-        print(f"✓ Found {len(df)} products")
+
+        df = services.read_excel_file()
         
         # Verify required columns
         required_columns = ['WL', 'Silo Image', 'Lifestyle Image']
@@ -52,6 +52,8 @@ def main():
             silo_image_url = row['Silo Image']
             website_link = row.get('WebSite Link for Context', '')
             existing_lifestyle = row.get('Lifestyle Image', '')
+
+            product_data = services.row_to_product_data(row)
             
             print(f"[{idx + 1}/{len(df)}] Processing: {wl_model}")
             if 'Model' in df.columns:
@@ -71,15 +73,16 @@ def main():
                     continue
                 
                 # Step 1: Analyze product image
-                analysis = services.analyze_product_image(vision_client, silo_image_url, website_link)
+                # No action needed, agent handles this
+
                 
                 # Step 2: Generate prompt
-                prompt = services.generate_room_scene_prompt(wl_model, analysis)
+                prompt = services.create_place_image_in_room_prompt()
                 
                 # Step 3: Generate room scene
                 output_filename = f"{wl_model}_room.png"
                 local_output_path = output_dir / output_filename
-                services.generate_room_scene(imagen_model, prompt, str(local_output_path))
+                services.generate_room_scene_with_agent(agent, prompt, product_data, str(local_output_path))
                 
                 # Step 4: Upload to SFTP
                 public_url = services.upload_to_sftp(str(local_output_path), output_filename)

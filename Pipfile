@@ -28,6 +28,7 @@ opencv-python = "*"
 numpy = "*"
 rembg = "*"
 pydantic = "*"
+matplotlib = "*"
 
 [dev-packages]
 autopep8 = "*"
