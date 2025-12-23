@@ -33,7 +33,6 @@ matplotlib = "*"
 [dev-packages]
 autopep8 = "*"
 pylint = "*"
-sqlacodegen = "*"
 sqlacodegen-v2 = "*"
 psycopg2 = "*"
 ipykernel = "*"
