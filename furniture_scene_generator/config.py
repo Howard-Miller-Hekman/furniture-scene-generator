@@ -14,8 +14,12 @@ PROJECT_VERSION = version.__version__
 PROJECT_ID = os.getenv('GOOGLE_PROJECT_ID')
 LOCATION = os.getenv('GOOGLE_LOCATION', 'us-central1')
 CREDENTIALS_PATH = os.getenv('GOOGLE_CREDENTIALS_PATH')
+
 EXCEL_INPUT_PATH = os.getenv('EXCEL_INPUT_PATH', './Overstock White Label Project 093025.xlsx')
+EXCEL_EDITED_INPUT_PATH = os.getenv('EXCEL_EDITED_INPUT_PATH', './Overstock_White_Label_Project_093025_updated (2).xlsx')
+
 EXCEL_OUTPUT_PATH = os.getenv('EXCEL_OUTPUT_PATH', './output/Overstock White Label Project 093025_updated.xlsx')
+EXCEL_EDITED_OUTPUT_PATH = os.getenv('EXCEL_EDITED_OUTPUT_PATH', './output/Overstock White Label Project 093025_edited.xlsx')
 
 SFTP_HOST = os.getenv('SFTP_HOST')
 SFTP_PORT = int(os.getenv('SFTP_PORT', 22))

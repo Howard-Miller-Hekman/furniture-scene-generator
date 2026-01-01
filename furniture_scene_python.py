@@ -28,7 +28,7 @@ def main():
         vision_client, imagen_model = services.initialize_google_clients()
         print("✓ Clients initialized")
 
-        agent = llm.create_agent()
+        agent = llm.create_stage1_agent()
         
 
         df = services.read_excel_file()

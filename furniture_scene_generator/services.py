@@ -562,6 +562,15 @@ def read_excel_file():
     return df
 
 
+def read_edit_excel_file():
+    # Read Excel file
+    logger.info(f"\n📂 Reading Excel file: {config.EXCEL_EDITED_INPUT_PATH}")
+    # Ensure Model column is read as string
+    df = pd.read_excel(config.EXCEL_EDITED_INPUT_PATH, dtype={"Model": str})
+    logger.info(f"✓ Found {len(df)} products")
+    return df
+
+
 def row_to_product_data(row) -> schema.ProductData:
     row_dict = row.to_dict()
 
